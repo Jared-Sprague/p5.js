@@ -10,15 +10,17 @@ var proverbs,
   isZoomed = false,
   destTopLeft,
   destBottomRight,
-  particleA,
-  particleB,
-  extraSpeed = 1.5,
+  topLeftParticle,
+  bottomRightParticle,
+  EXTRA_ZOOM_SPEED = 1.75,
   FRAME_RATE = 30;
 
 function setup() {
   frameRate(FRAME_RATE);
+  var image_name = isMobile.any ? 'netherlandish_proverbs_mobile_low_res90.jpg' :
+    'netherlandish_proverbs.jpg';
 
-  proverbs = loadImage('netherlandish_proverbs.jpg', function () {
+  proverbs = loadImage(image_name, function () {
     createCanvas(proverbs.width, proverbs.height);
     image(proverbs, 0, 0);
     RECT_WIDTH = floor(proverbs.width * 0.075);
@@ -41,41 +43,83 @@ function draw() {
   image(proverbs, 0, 0);
 
   if (isZoomed) {
-    particleA.update();
-    particleB.update();
+    topLeftParticle.update();
+    bottomRightParticle.update();
 
-    var rect_x = particleA.position.x;
-    var rect_y = particleA.position.y;
-    var rect_width = particleB.position.x - particleA.position.x;
-    var rect_height = particleB.position.y - particleA.position.y;
+    var zoom_rect_x = topLeftParticle.position.x;
+    var zoom_rect_y = topLeftParticle.position.y;
+    var zoom_rect_width = bottomRightParticle.position.x - topLeftParticle.position.x;
+    var zoom_rect_height = bottomRightParticle.position.y - topLeftParticle.position.y;
 
-    rect(rect_x, rect_y, rect_width, rect_height);
+    rect(zoom_rect_x, zoom_rect_y, zoom_rect_width, zoom_rect_height);
 
     // Draw a zoomed image of the current rect
-    image(proverbs, rectX, rectY, RECT_WIDTH, RECT_HEIGHT, rect_x, rect_y,
-      rect_width, rect_height);
+    image(proverbs, rectX, rectY, RECT_WIDTH, RECT_HEIGHT, zoom_rect_x,
+      zoom_rect_y, zoom_rect_width, zoom_rect_height);
 
     return;
   }
 
-  // keep the rect within the bounds of the image
-  rectX = mouseX - floor(RECT_WIDTH / 2);
-  rectY = mouseY - floor(RECT_HEIGHT / 2);
-  rectX = applyCoordBoundary(rectX, RECT_WIDTH, proverbs.width);
-  rectY = applyCoordBoundary(rectY, RECT_HEIGHT, proverbs.height);
-
-  // Draw the zoom rect
-  rect(rectX, rectY, RECT_WIDTH, RECT_HEIGHT);
+  updateZoomSelectRect();
+  drawZoomSelectRect();
 }
 
-function mouseClicked() {
-  console.log(touchX, touchY);
-  var origin = createVector(mouseX, mouseY);
+function updateZoomSelectRect() {
+  var cursorX, cursorY;
+  if (isMobile.any) {
+    cursorX = touchX;
+    cursorY = touchY;
+  } else {
+    cursorX = mouseX;
+    cursorY = mouseY;
+  }
+  if (cursorX === 0 && cursorY === 0) {
+    cursorX = floor((proverbs.width / 2) - (RECT_WIDTH / 2));
+    cursorY = floor((proverbs.height / 2) - (RECT_HEIGHT / 2));
+  }
+
+  // keep the rect within the bounds of the image
+  rectX = cursorX - floor(RECT_WIDTH / 2);
+  rectY = cursorY - floor(RECT_HEIGHT / 2);
+  rectX = applyCoordBoundary(rectX, RECT_WIDTH, proverbs.width);
+  rectY = applyCoordBoundary(rectY, RECT_HEIGHT, proverbs.height);
+}
+
+function drawZoomSelectRect() {
+  // Draw the zoom rect
+  rect(rectX, rectY, RECT_WIDTH, RECT_HEIGHT);
+
+  // draw the plus symbol circle in the top left
+  var w = 14;
+  var line_w = w / 2;
+  var x = rectX + w;
+  var y = rectY + w;
+  ellipse(x, y, w, w);
+
+  // draw the cross in the ellipse
+  line(x, y + line_w, x, y - line_w);
+  line(x + line_w, y, x - line_w, y);
+}
+
+function touchStarted() {
+  updateZoomSelectRect();
+}
+
+function touchMoved() {
+  updateZoomSelectRect();
+}
+
+function touchEnded() {
+  var origin = isMobile.any ? createVector(touchX, touchY) :
+    createVector(mouseX, mouseY);
   var topLeftDist = p5.Vector.dist(destTopLeft, origin);
   var bottomRightDist = p5.Vector.dist(destBottomRight, origin);
   var multiplierA;
   var multiplierB;
 
+  updateZoomSelectRect();
+
+  // try to make two particles arrive at their destination at the same time
   if (topLeftDist < bottomRightDist) {
     multiplierA = topLeftDist / FRAME_RATE;
     multiplierB = multiplierA * (bottomRightDist / topLeftDist);
@@ -86,8 +130,8 @@ function mouseClicked() {
     multiplierB = multiplierA = topLeftDist / FRAME_RATE;
   }
 
-  particleA = new Particle(origin, destTopLeft, multiplierA * extraSpeed);
-  particleB = new Particle(origin, destBottomRight, multiplierB * extraSpeed);
+  topLeftParticle = new Particle(origin, destTopLeft, multiplierA * EXTRA_ZOOM_SPEED);
+  bottomRightParticle = new Particle(origin, destBottomRight, multiplierB * EXTRA_ZOOM_SPEED);
 
   isZoomed = !isZoomed;
   return false;
@@ -114,13 +158,13 @@ var Particle = function (position, dest, speed) {
   this.direction = p5.Vector.sub(dest, position);
   this.direction.normalize();
   this.direction.mult(speed);
-  this.velocity = createVector(this.direction.x, this.direction.y); //createVector(0, 0);
+  this.velocity = createVector(this.direction.x, this.direction.y);
 };
 
 // Method to update position
 Particle.prototype.update = function () {
   this.velocity.add(this.acceleration);
-  if (p5.Vector.dist(this.dest, this.position) < 15) {
+  if (p5.Vector.dist(this.dest, this.position) < 20) {
     this.velocity = createVector(0, 0);
   }
   this.position.add(this.velocity);
