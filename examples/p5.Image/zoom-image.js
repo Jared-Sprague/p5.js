@@ -137,9 +137,7 @@ function touchEnded() {
   return false;
 }
 
-/**
- * Prevents the rect from drawing outside the canvas boundary
- */
+// Prevents the rect from drawing outside the canvas boundary
 function applyCoordBoundary(coord, sideLength, boundary) {
   if (coord < 0) {
     return 0;
@@ -165,6 +163,7 @@ var Particle = function (position, dest, speed) {
 Particle.prototype.update = function () {
   this.velocity.add(this.acceleration);
   if (p5.Vector.dist(this.dest, this.position) < 20) {
+    // reached destination, stop this particle
     this.velocity = createVector(0, 0);
   }
   this.position.add(this.velocity);
